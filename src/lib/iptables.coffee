@@ -1,14 +1,17 @@
 Promise = require 'bluebird'
 childProcess = Promise.promisifyAll(require('child_process'))
 
-clearAndAppendIptablesRule = (rule) ->
+clearIptablesRule = (rule) ->
 	childProcess.execAsync("iptables -D #{rule}")
+
+clearAndAppendIptablesRule = (rule) ->
+	clearIptablesRule(rule)
 	.catchReturn()
 	.then ->
 		childProcess.execAsync("iptables -A #{rule}")
 
 clearAndInsertIptablesRule = (rule) ->
-	childProcess.execAsync("iptables -D #{rule}")
+	clearIptablesRule(rule)
 	.catchReturn()
 	.then ->
 		childProcess.execAsync("iptables -I #{rule}")
@@ -23,3 +26,10 @@ exports.rejectOnAllInterfacesExcept = (allowedInterfaces, port) ->
 		.catch ->
 			# On systems without REJECT support, fall back to DROP
 			clearAndAppendIptablesRule("INPUT -p tcp --dport #{port} -j DROP")
+
+exports.removeRejections = (port) ->
+	clearIptablesRule("INPUT -p tcp --dport #{port} -j REJECT")
+	.catchReturn()
+	.then ->
+		clearIptablesRule("INPUT -p tcp --dport #{port} -j DROP")
+	.catchReturn()
